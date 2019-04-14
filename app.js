@@ -9,11 +9,10 @@ app.use('/client', express.static(__dirname + '/client'));
 
 serv.listen(2000);
 console.log("Server started.");
+//setting up the local host server
 
 var SOCKET_LIST = {};
-//var sock = io();
-var playerNum = 0;
-var playersAlive = 0;
+var playerNum = 0; 
 
 var Entity = function () {
     var self = {
@@ -33,17 +32,17 @@ var Entity = function () {
     return self;
 }
 
-var Player = function (id) {
+var Player = function (id, user) {
     var self = Entity();
     self.id = id;
     self.number = "" + Math.floor(10 * Math.random());
-    self.username = "";
+    self.username = user;
     self.pressingRight = false;
     self.pressingLeft = false;
     self.pressingUp = false;
     self.pressingDown = false;
     self.maxSpd = 10;
-    self.status = 1;
+    //self.status = 1;
     self.characterType = 0;
 
     var super_update = self.update;
@@ -73,8 +72,7 @@ var Player = function (id) {
 }
 Player.list = {};
 Player.onConnect = function (socket, username) {
-    var player = Player(socket.id);
-    player.username = username;
+    var player = Player(socket.id, username);
     socket.on('keyPress', function (data) {
         if (data.inputId === 'left')
             player.pressingLeft = data.state;
@@ -88,7 +86,6 @@ Player.onConnect = function (socket, username) {
 
 }
 Player.onDisconnect = function (socket) {
-    //Player.list[socket.id].status = 0;
     delete Player.list[socket.id];
 }
 Player.update = function () {
@@ -99,7 +96,8 @@ Player.update = function () {
         pack.push({
             x: player.x,
             y: player.y,
-            number: player.number
+            number: player.number,
+            username: player.username
         });
     }
     return pack;
@@ -116,7 +114,6 @@ io.sockets.on('connection', function (socket) {
         Player.onConnect(socket, data.username);
         socket.emit('signInResponse');
         playerNum++;
-        console.log("player joined");
         if (playerNum === 4) {
             console.log("4 players reached");
             for (var i in SOCKET_LIST) {
@@ -130,12 +127,11 @@ io.sockets.on('connection', function (socket) {
         Player.onDisconnect(socket);
         playerNum--;
     });
-    socket.on('sendMsgToServer', function (data) {
+    socket.on('sendMsgToServer',function(data){
         for (var i in SOCKET_LIST) {
-            if (Player.list[i].status === 1)
-                SOCKET_LIST[i].emit('addToChat', username + ': ' + data);
-        }
-    });
+            SOCKET_LIST[i].emit('addToChat', username + ': ' + data);
+		}
+	});
 
     socket.on('evalServer', function (data) {
         if (!DEBUG)
@@ -143,39 +139,42 @@ io.sockets.on('connection', function (socket) {
         var res = eval(data);
         socket.emit('evalAnswer', res);
     });
-        
+
+    
 });
 
-setInterval(function () {
-    var pack = {
-        player: Player.update(),
-    }
-    for (var i in SOCKET_LIST) {
-        var socket = SOCKET_LIST[i];
-        socket.emit('newPositions', pack);
-    }
-}, 1000 / 25);
+var playersAlive = 0;
+var mafiaAlive = true;
 
 function beginGame() {
     console.log("begin new game");
-    assignCharacters(); //shuffle the list to assign the character types to the players
+    //assignCharacters(); //shuffle the list to assign the character types to the players
+    // socket 0 = mafia
+    // socket 1 = doctor
+    // socket 2 = dective
+    // socket 3 = civilian
+    console.log('characters assigned');
     playersAlive = playerNum; //count to keep track of how many players are alive 
     intro(); //introduce the characters to the game
-    console.log("intro complete");
     //cycle through day and night cycle until the mafia is dead
     //or there is equal mafia to townspeople
     var cycleNum = 1;
-    while (Player.list[0].status === 1 && playersAlive >= 3) {
-        if (cycleNum % 2 === 0) {
-            dayCycle();
-            console.log("day cycle complete");
-        }
-        else {
-            nightCycle();
-            console.log("night cycle complete");
-        }   
+    while (mafiaAlive && playersAlive >= 3) {
+        // if (cycleNum % 2 === 0) {
+         //   dayCycle();
+           // console.log("day cycle complete");
+      //  }
+        //else {
+          //  nightCycle();
+            //console.log("night cycle complete");
+        //}
+
+        console.log('cycle ' + cycleNum);
         cycleNum++;
+        playersAlive--;
     }
+
+    console.log('loop end')
     //if the mafia character is dead
     if (Player.list[0].status === 0)
         outro(1);
@@ -186,16 +185,14 @@ function beginGame() {
 
 //shuffle the player list to assign characters to the players
 function assignCharacters() {
-    var Players = Player.list;
-    for (let i = (Player.list).length - 1; i > 0; i--) {
+    var nums = [1, 2, 3, 4];
+    for (let i = nums.length - 1; i > 0; i--) {
         let j = Math.floor(Math.random() * (i + 1)); // random index from 0 to i
-        [Players[i], Players[j]] = [Players[j], Players[i]]; // swap elements
+        [nums[i], nums[j]] = [nums[j], nums[i]]; // swap elements
     }
     for (var i in Player.list) {
-        for (var j in Players) {
-            if (Players[j].id === Player.list[i].id)
-                Player.list[i].characterType += j;
-        }
+        var num = nums[i];
+        Player.list[i].characterType += num;
     }
     // 0 = mafia
     // 1 = doctor
@@ -203,11 +200,9 @@ function assignCharacters() {
     // 3 = civilian
 }
 
-//io.on('intro', intro);
 function intro() {
-    // set roles in HTML here
+
     for (var i in SOCKET_LIST) {
-        SOCKET_LIST[i].emit('addToChat', "Hello and welcome to Masonville!");
         SOCKET_LIST[i].emit('addToChat', 'I wish you could have visted our town under better circumstances.');
         SOCKET_LIST[i].emit('addToChat', 'Unfortunately, we have had a recent run in with the Mafia');
         SOCKET_LIST[i].emit('addToChat', 'Every night when the sun sets, the Mafia go out and kill someone.');
@@ -219,27 +214,14 @@ function intro() {
 }
 
 
-function outro(x) {
-    if (x === 1) {
 
+
+setInterval(function () {
+    var pack = {
+        player: Player.update(),
     }
-    if (x === 2) {
-
+    for (var i in SOCKET_LIST) {
+        var socket = SOCKET_LIST[i];
+        socket.emit('newPositions', pack);
     }
-
-}
-
-var nightCycleIntros = [
-    "Dark has fallen over Masonville and the Mafia are at it again.",
-    "It's night time once again and Masonville is underattack by the Mafia."
-]
-
-var dayCycleIntrosDeath = [
-    "Good morning people of Masonville. Unfortunately, last night we lost one our own last night.",
-    "The sun may have risen today on Masonville, but sadly one of us never will."
-]
-
-var dayCycleIntrosAlive = [
-    "Good morning people of Masonville. Last night we were very lucky and everyone survived.",
-    "It's a good day in Masonville. Last night, the doctor saved someone who was attacked."
-]
+}, 1000 / 25);
