@@ -11,6 +11,7 @@ serv.listen(2000);
 console.log("Server started.");
 
 var SOCKET_LIST = {};
+//var sock = io();
 var playerNum = 0;
 var playersAlive = 0;
 
@@ -43,6 +44,7 @@ var Player = function (id) {
     self.pressingDown = false;
     self.maxSpd = 10;
     self.status = 1;
+    self.characterType = 0;
 
     var super_update = self.update;
     self.update = function () {
@@ -128,12 +130,12 @@ io.sockets.on('connection', function (socket) {
         Player.onDisconnect(socket);
         playerNum--;
     });
-    socket.on('sendMsgToServer',function(data){
+    socket.on('sendMsgToServer', function (data) {
         for (var i in SOCKET_LIST) {
             if (Player.list[i].status === 1)
                 SOCKET_LIST[i].emit('addToChat', username + ': ' + data);
-		}
-	});
+        }
+    });
 
     socket.on('evalServer', function (data) {
         if (!DEBUG)
@@ -141,8 +143,7 @@ io.sockets.on('connection', function (socket) {
         var res = eval(data);
         socket.emit('evalAnswer', res);
     });
-
-    
+        
 });
 
 setInterval(function () {
@@ -157,7 +158,7 @@ setInterval(function () {
 
 function beginGame() {
     console.log("begin new game");
-    assignCharacters(); //shuffel the list to assign the character types to the players
+    assignCharacters(); //shuffle the list to assign the character types to the players
     playersAlive = playerNum; //count to keep track of how many players are alive 
     intro(); //introduce the characters to the game
     console.log("intro complete");
@@ -185,9 +186,16 @@ function beginGame() {
 
 //shuffle the player list to assign characters to the players
 function assignCharacters() {
+    var Players = Player.list;
     for (let i = (Player.list).length - 1; i > 0; i--) {
         let j = Math.floor(Math.random() * (i + 1)); // random index from 0 to i
-        [Player.list[i], Player.list[j]] = [Player.list[j], Player.list[i]]; // swap elements
+        [Players[i], Players[j]] = [Players[j], Players[i]]; // swap elements
+    }
+    for (var i in Player.list) {
+        for (var j in Players) {
+            if (Players[j].id === Player.list[i].id)
+                Player.list[i].characterType += j;
+        }
     }
     // 0 = mafia
     // 1 = doctor
@@ -195,14 +203,11 @@ function assignCharacters() {
     // 3 = civilian
 }
 
+//io.on('intro', intro);
 function intro() {
     // set roles in HTML here
-    SOCKET_LIST[0].emit('addToChat', "Hello MAFIA and welcome to Masonville!");
-    SOCKET_LIST[1].emit('addToChat', "Hello DOCTOR and welcome to Masonville!");
-    SOCKET_LIST[2].emit('addToChat', "Hello DETECTIVE and welcome to Masonville!");
-    SOCKET_LIST[3].emit('addToChat', "Hello CIVILIAN and welcome to Masonville!");
-
     for (var i in SOCKET_LIST) {
+        SOCKET_LIST[i].emit('addToChat', "Hello and welcome to Masonville!");
         SOCKET_LIST[i].emit('addToChat', 'I wish you could have visted our town under better circumstances.');
         SOCKET_LIST[i].emit('addToChat', 'Unfortunately, we have had a recent run in with the Mafia');
         SOCKET_LIST[i].emit('addToChat', 'Every night when the sun sets, the Mafia go out and kill someone.');
