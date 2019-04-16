@@ -14,7 +14,9 @@
     <form id="chat-form">
         <input id="chat-input" type="text" style="width:500px"></input>
     </form>
-    <div id="role" style="width:500px; height: 200px; border: 1px solid #000000">Role</div>
+    <div id="role" style="width:500px; height: 200px; border: 1px solid #000000">
+        <div>Role</div>
+    </div>
 
 </div>
 
@@ -41,6 +43,7 @@
     var chatText = document.getElementById('chat-text');
     var chatInput = document.getElementById('chat-input');
     var chatForm = document.getElementById('chat-form');
+    var roleForm = document.getElementById('role');
     var ctx = document.getElementById("ctx").getContext("2d");
     ctx.font = '30px Arial';
 
@@ -57,7 +60,9 @@
     socket.on('evalAnswer', function (data) {
         console.log(data);
     });
-
+    socket.on('roleWrite', function (data) {
+        roleForm.innerHTML += '<div>' + data + '</div>';
+    });
 
     chatForm.onsubmit = function (e) {
         e.preventDefault();
