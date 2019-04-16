@@ -104,9 +104,11 @@ Player.update = function () {
 }
 var DEBUG = true;
 
+//var role = 0;
 var io = require('socket.io')(serv, {});
 io.sockets.on('connection', function (socket) {
-    socket.id = Math.random();
+    socket.id = playerNum;
+    //role++;
     SOCKET_LIST[socket.id] = socket;
     var username;
     socket.on('signIn', function (data) {
@@ -148,7 +150,7 @@ var mafiaAlive = true;
 
 function beginGame() {
     console.log("begin new game");
-    //assignCharacters(); //shuffle the list to assign the character types to the players
+    assignCharacters(); //shuffle the list to assign the character types to the players
     // socket 0 = mafia
     // socket 1 = doctor
     // socket 2 = dective
@@ -175,29 +177,91 @@ function beginGame() {
     }
 
     console.log('loop end')
-    //if the mafia character is dead
-    if (Player.list[0].status === 0)
-        outro(1);
-    //if the mafia character is alive
-    else
-        outro(2);
+
+   // if (mafiaAlive)
+     //   outro(1);
+   // else
+    //   outro(2);
+    playerNum = 0;
+    mafiaAlive = true;
 }
+/*
+function dayCycle() {
+    var v = [0, 0, 0, 0, 0];
+    var maxVotes = 0;
+    var maxPlayer = 5;
+
+    for (var i in SOCKET_LIST) {
+        SOCKET_LIST[i].emit('addToChat', "Good morning Masonville, I'm so glad to see you survived!");
+        SOCKET_LIST[i].emit('addToChat', "But now you must choose who you think is the Mafia.");
+        SOCKET_LIST[i].emit('addToChat', "Feel free to discuss with the other players.");
+        SOCKET_LIST[i].emit('addToChat', '');
+    }
+
+    for (var i in SOCKET_LIST) {
+        var identification = SOCKET_LIST[i].emit('choosePlayer', Player.list[i]);
+        if (SOCKET_LIST[0].id === identification)      { v[0]++; }
+        else if (SOCKET_LIST[1].id === identification) { v[1]++; }
+        else if (SOCKET_LIST[2].id === identification) { v[2]++; }
+        else if (SOCKET_LIST[3].id === identification) { v[3]++; }
+        else                                           { v[4]++; }
+    }
+
+    for (var i = 0; i < 4; i++) {
+        if (v[i] > max) {
+            maxVotes = v[i];
+            maxPlayer = i;
+        }
+    }
+
+    if (maxPlayer == 0) {
+        for (var i in SOCKET_LIST) {
+            SOCKET_LIST[i].emit('addToChat', "Good work everyone! You've done it!");
+            SOCKET_LIST[i].emit('addToChat', "THE MAFIA IS DEAD!");
+            SOCKET_LIST[i].emit('addToChat', "");
+        }
+        mafiaAlive = false;
+    }
+    else {
+        for (var i in SOCKET_LIST) {
+            SOCKET_LIST[i].emit('addToChat', "Unfortunately, that was not the right person.");
+            SOCKET_LIST[i].emit('addToChat', "An inosent townsperson has now been killed.");
+            SOCKET_LIST[i].emit('addToChat', "");
+        }
+        delete Player.list[maxPlayer];
+        playersAlive--;
+    }
+
+}
+*/
 
 //shuffle the player list to assign characters to the players
 function assignCharacters() {
-    var nums = [1, 2, 3, 4];
-    for (let i = nums.length - 1; i > 0; i--) {
+    for (let i = 3; i >= 0; i--) {
         let j = Math.floor(Math.random() * (i + 1)); // random index from 0 to i
-        [nums[i], nums[j]] = [nums[j], nums[i]]; // swap elements
-    }
-    for (var i in Player.list) {
-        var num = nums[i];
-        Player.list[i].characterType += num;
+        [Player.list[i], Player.list[j]] = [Player.list[j], Player.list[i]]; // swap elements
+        [SOCKET_LIST[i], SOCKET_LIST[j]] = [SOCKET_LIST[j], SOCKET_LIST[i]];
     }
     // 0 = mafia
     // 1 = doctor
     // 2 = dective
     // 3 = civilian
+    
+    for (let i = 3; i >= 0; i--) {
+        SOCKET_LIST[i].emit('roleWrite', i);
+        if (i == 0) {
+            SOCKET_LIST[i].emit('roleWrite', "Character type: MAFIA");
+        }
+        else if (i == 1) {
+            SOCKET_LIST[i].emit('roleWrite', "Character type: DOCTOR");
+        }
+        else if (i == 2) {
+            SOCKET_LIST[i].emit('roleWrite', "Character type: DECTIVE");
+        }
+        else {
+            SOCKET_LIST[i].emit('roleWrite', "Character type: CIVILIAN");
+        }
+    }
 }
 
 function intro() {
@@ -210,11 +274,9 @@ function intro() {
         SOCKET_LIST[i].emit('addToChat', "So, we can't always save the people who are attacked.");
         SOCKET_LIST[i].emit('addToChat', "Well, I hope I didn't scare you too much, just get some rest,");
         SOCKET_LIST[i].emit('addToChat', 'hopefully we see you in the morning.');
+        SOCKET_LIST[i].emit('addToChat', '');
     }
-}
-
-
-
+} 
 
 setInterval(function () {
     var pack = {
