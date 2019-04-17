@@ -12,7 +12,7 @@ console.log("Server started.");
 //setting up the local host server
 
 var SOCKET_LIST = {};
-var playerNum = 0; 
+var playerNum = 0;
 
 var Entity = function () {
     var self = {
@@ -43,7 +43,7 @@ var Player = function (id, user) {
     self.pressingDown = false;
     self.maxSpd = 10;
     self.status = 1;
-    self.characterType = 3;
+    //self.characterType = 0;
 
     var super_update = self.update;
     self.update = function () {
@@ -111,18 +111,16 @@ Player.getUsername = function (id) {
 }
 Player.kill = function (id) {
     Player.list[id].status = 0;
+
+    for (var i in SOCKET_LIST) {
+        SOCKET_LIST[i].emit('addToChat', Player.getUsername(id)+' has been eliminated');
+    }
 }
 Player.save = function (id) {
     Player.list[id].status = 1;
 }
 Player.getStatus = function (id) {
     return Player.list[id].status;
-}
-Player.setCharacterType = function (id, x) {
-    Player.list[id].characterType = x;
-}
-Player.getCharacterType = function (id) {
-    return Player.list[id].characterType;
 }
 
 var DEBUG = true;
@@ -144,6 +142,12 @@ io.sockets.on('connection', function (socket) {
             for (var i in SOCKET_LIST) {
                 SOCKET_LIST[i].emit('addToChat', 'Four people have joined. The game will now begin!');
             }
+            assignCharacters();
+            for (var i in SOCKET_LIST) {
+                SOCKET_LIST[i].id = i;
+                Player.updateID(i);
+            }
+            console.log('characters assigned');
             beginGame();
         }
     });
@@ -165,55 +169,47 @@ io.sockets.on('connection', function (socket) {
         var res = eval(data);
         socket.emit('evalAnswer', res);
     });
-    
+
 });
 
 var playersAlive = 0;
-var mafiaAlive = true;
 
 function beginGame() {
     console.log("begin new game");
-    assignCharacters();
-    console.log('characters assigned');
     // socket 0 = mafia
     // socket 1 = doctor
     // socket 2 = dective
     // socket 3 = civilian
-    playersAlive = playerNum; //count to keep track of how many players are alive 
+    playersAlive = playerNum; //count to keep track of how many players are alive
     intro(); //introduce the characters to the game
     //cycle through day and night cycle until the mafia is dead
     //or there is equal mafia to townspeople
     var cycleNum = 1;
-    while (mafiaAlive === true && playersAlive > 2) {
-        if (cycleNum % 2 === 0) {
+    while (Player.getStatus(0) === 1 && playersAlive > 2) {
+         if (cycleNum % 2 === 0) {
             dayCycle();
             console.log("day cycle complete");
         }
-        else {
-            //nightCycle();
-            console.log("night cycle complete");
-            playersAlive--;
-        }
+        //else {
+          //  nightCycle();
+            //console.log("night cycle complete");
+        //}
 
         console.log('cycle ' + cycleNum);
         cycleNum++;
+        playersAlive--;
     }
 
-    //the outro if the mafia is still alive
-    if (mafiaAlive) {
+    console.log('loop end');
+
+    if (Player.getStatus(0) === 1)
         outro(1);
-        console.log('mafia wins');
-    }
-    //the outro if the mafia has been killed
-    else {
+    else
         outro(2);
-        console.log('town wins');
-    }
 
     //reset variables
     playerNum = 0;
     mafiaAlive = true;
-    console.log('end game');
 }
 
 function dayCycle() {
@@ -257,7 +253,7 @@ function dayCycle() {
     //hightest voted player is still alive
     else {
         //highest voted player is mafia
-        if (Player.getCharacterType(maxPlayer) === 0) {
+        if (maxPlayer == 0) {
             for (var i in SOCKET_LIST) {
                 SOCKET_LIST[i].emit('addToChat', "Good work everyone! You've rooted out the Mafia!");
                 SOCKET_LIST[i].emit('addToChat', "THE MAFIA IS DEAD!");
@@ -270,7 +266,6 @@ function dayCycle() {
             SOCKET_LIST[maxPlayer].emit('roleWrite', "Status: Dead");
 
             Player.kill(maxPlayer);
-            mafiaAlive = false;
             console.log('mafia killed');
         }
         //highest voted player is non-mafia
@@ -288,47 +283,67 @@ function dayCycle() {
 
             Player.kill(id);
             playersAlive--;
-            console.log('townperson killed')
+            console.log('townperson killed');
         }
     }
+}
+
+function nightCycle(){
+  var playersChoosen[];
+  for (var i in SOCKET_LIST) {
+    SOCKET_LIST[i].emit('addToChat', "Dark has fallen over Masonville and the Mafia are at it again.");
+  }
+
+  for (var i in SOCKET_LIST){
+    playersChoosen[i] = SOCKET_LIST[i].emit('buttonPressed', i);
+  }
+
+  if ( playersChoosen[0] == playersChoosen[1] ){
+    console.log('No one died');
+  }
+  else {
+    console.log('A player was killed');
+    Player.kill(playersChoosen[0]);
+  }
+
+  if(playersChoosen[3] == 0){
+    SOCKET_LIST[3].emit('addToChat', "Congradulations! You have found a mafia member. Proceed with caution")
+  }
+  else {
+    SOCKET_LIST[3].emit('addToChat', "There is no evidence of that player being mafia. You can search someone again tomorrow night... should you surive")
+  }
 }
 
 
 //shuffle the player list to assign characters to the players
 function assignCharacters() {
     //randomly shuffle the player and socket lists
-    var Players = [0, 1, 2, 3];
     for (let i = 3; i >= 0; i--) {
         let j = Math.floor(Math.random() * (i + 1)); // random index from 0 to i
-        [Players[i], Players[j]] = [Players[j], Players[i]]; // swap elements
+        [Player.list[i], Player.list[j]] = [Player.list[j], Player.list[i]]; // swap elements
+        [SOCKET_LIST[i], SOCKET_LIST[j]] = [SOCKET_LIST[j], SOCKET_LIST[i]];
     }
-
-    for (let i = 0; i < 4; i++) {
-        Player.setCharacterType(i, Players[i]);
-    }
-
     // 0 = mafia
     // 1 = doctor
     // 2 = dective
     // 3 = civilian
-    
+
     for (let i = 3; i >= 0; i--) {
         //print the users name into their role box
         SOCKET_LIST[i].emit('roleWrite', 'Username: ' + Player.getUsername(i));
-        var type = Player.getCharacterType(i);
 
         //print the users character type into their own role box
-        if (type === 0) {
+        if (i == 0) {
             SOCKET_LIST[i].emit('roleWrite', "Character type: MAFIA");
         }
-        else if (type === 1) {
+        else if (i == 1) {
             SOCKET_LIST[i].emit('roleWrite', "Character type: DOCTOR");
         }
-        else if (type === 2) {
-            SOCKET_LIST[i].emit('roleWrite', "Character type: DETECTIVE");
+        else if (i == 2) {
+            SOCKET_LIST[i].emit('roleWrite', "Character type: DECTIVE");
         }
         else {
-            SOCKET_LIST[i].emit('roleWrite', "Character type: TOWNEY");
+            SOCKET_LIST[i].emit('roleWrite', "Character type: CIVILIAN");
         }
     }
 }
@@ -339,13 +354,13 @@ function intro() {
         SOCKET_LIST[i].emit('addToChat', 'I wish you could have visted our town under better circumstances.');
         SOCKET_LIST[i].emit('addToChat', 'Unfortunately, we have had a recent run in with the Mafia');
         SOCKET_LIST[i].emit('addToChat', 'Every night when the sun sets, the Mafia go out and kill someone.');
-        SOCKET_LIST[i].emit('addToChat', 'We live in a small town and only have one doctor and one detective.');
+        SOCKET_LIST[i].emit('addToChat', 'We live in a small town and we only have one doctor and one detective.');
         SOCKET_LIST[i].emit('addToChat', "So, we can't always save the people who are attacked.");
         SOCKET_LIST[i].emit('addToChat', "Well, I hope I didn't scare you too much, just get some rest,");
         SOCKET_LIST[i].emit('addToChat', 'hopefully we see you in the morning.');
         SOCKET_LIST[i].emit('addToChat', '-----');
     }
-} 
+}
 
 function outro(x) {
     //messages are printed to everyone
@@ -353,7 +368,7 @@ function outro(x) {
     if (x === 1) {
         for (var i in SOCKET_LIST) {
             var socket = SOCKET_LIST[i];
-            socket.emit('addToChat', "Its a dark day in Masonville.");
+            socket.emit('addToChat', "It is a dark day in Masonville.");
             socket.emit('addToChat', "Our town has officially been taken over by the Mafia!");
             socket.emit('addToChat', "-----");
             socket.emit('addToChat', "GAME OVER");
