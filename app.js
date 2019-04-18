@@ -179,6 +179,7 @@ io.sockets.on('connection', function (socket) {
 var playersAlive = 0;
 var mafiaAlive = true;
 
+
 function beginGame() {
     console.log("begin new game");
     assignCharacters();
@@ -297,7 +298,7 @@ function dayCycle() {
 
             SOCKET_LIST[maxPlayer].emit('roleWrite', "Status: Dead");
 
-            Player.kill(id);
+            Player.kill(maxPlayer);
             playersAlive--;
             console.log('townperson killed')
         }
