@@ -44,6 +44,7 @@ var Player = function (id, user) {
     self.maxSpd = 10;
     self.status = 1;
     self.characterType = 3;
+    self.choice = 0;
 
     var super_update = self.update;
     self.update = function () {
@@ -82,6 +83,14 @@ Player.onConnect = function (socket, username) {
             player.pressingUp = data.state;
         else if (data.inputId === 'down')
             player.pressingDown = data.state;
+        else if (data.inputId === 'action1')
+            player.choice = 0;
+        else if (data.inputId === 'action2')
+            player.choice = 1;
+        else if (data.inputId === 'action3')
+            player.choice = 2;
+        else if (data.inputId === 'action4')
+            player.choice = 3;
     });
 
 }
@@ -112,9 +121,6 @@ Player.getUsername = function (id) {
 Player.kill = function (id) {
     Player.list[id].status = 0;
 }
-Player.save = function (id) {
-    Player.list[id].status = 1;
-}
 Player.getStatus = function (id) {
     return Player.list[id].status;
 }
@@ -123,6 +129,9 @@ Player.setCharacterType = function (id, x) {
 }
 Player.getCharacterType = function (id) {
     return Player.list[id].characterType;
+}
+Player.getChoice = function (id) {
+    return Player.list[id].choice;
 }
 
 var DEBUG = true;
@@ -154,8 +163,7 @@ io.sockets.on('connection', function (socket) {
     });
     socket.on('sendMsgToServer',function(data){
         for (var i in SOCKET_LIST) {
-            if (Player.getStatus(i) === 1)
-                SOCKET_LIST[i].emit('addToChat', username + ': ' + data);
+            SOCKET_LIST[i].emit('addToChat', username + ': ' + data);
 		}
 	});
 
@@ -184,7 +192,7 @@ function beginGame() {
     //cycle through day and night cycle until the mafia is dead
     //or there is equal mafia to townspeople
     var cycleNum = 1;
-    while (mafiaAlive === true && playersAlive > 2 && cycleNum < 20) {
+    while (mafiaAlive === true && playersAlive > 2 && cycleNum < 10) {
         if (cycleNum % 2 === 0) {
             dayCycle();
             console.log("day cycle complete");
@@ -197,6 +205,7 @@ function beginGame() {
 
         console.log('cycle ' + cycleNum);
         cycleNum++;
+        playerList();
     }
 
     //the outro if the mafia is still alive
@@ -228,9 +237,11 @@ function dayCycle() {
         SOCKET_LIST[i].emit('addToChat', '-----');
     }
 
+    sleep(30000);
+
     for (var i in SOCKET_LIST) {
         //var id = SOCKET_LIST[i].emit('buttonPressed', Player.list[i]);
-        var id = 1;
+        var id = Player.getChoice(i);
         if (id === 0)      { v[0]++; }
         else if (id === 1) { v[1]++; }
         else if (id === 2) { v[2]++; }
@@ -294,8 +305,8 @@ function dayCycle() {
 }
 
 function nightCycle() {
-    var playersChosen = [1, 0, 1, 2];
-    //var playersChosen = [];
+    //var playersChosen = [1, 0, 1, 2];
+    var playersChosen = [];
     var mafiaIndex = 0;
     var doctorIndex = 0;
     var detectiveIndex = 0;
@@ -303,8 +314,10 @@ function nightCycle() {
         SOCKET_LIST[i].emit('addToChat', "Dark has fallen over Masonville and the Mafia are at it again.");
     }
 
+    sleep(30000);
+
     for (var i in SOCKET_LIST) {
-        //playersChosen[i] = SOCKET_LIST[i].emit('buttonPressed', i);
+        playersChosen[i] = Player.getChoice(i);
         var char = Player.getCharacterType(i)
         if (char === 0)
             mafiaIndex = i;
@@ -392,6 +405,23 @@ function assignCharacters() {
             SOCKET_LIST[i].emit('roleWrite', "Character type: TOWNEY");
         }
     }
+
+    playerList();
+}
+
+function playerList() {
+    for (var i in SOCKET_LIST) {
+        var socket = SOCKET_LIST[i];
+        socket.emit('playerClear');
+        for (let i = 0; i < 4; i++) {
+            j = i + 1;
+            socket.emit('playerWrite', "Player " + j + ": " + Player.getUsername(i));
+            if (Player.getStatus(i) === 1)
+                socket.emit('playerWrite', "Status: ALIVE");
+            else
+                socket.emit('playerWrite', "Status: DEAD");
+        }
+    }
 }
 
 function intro() {
@@ -442,3 +472,12 @@ setInterval(function () {
         socket.emit('newPositions', pack);
     }
 }, 1000 / 25);
+
+function sleep(milliseconds) {
+    var start = new Date().getTime();
+    for (var i = 0; i < 1e7; i++) {
+        if ((new Date().getTime() - start) > milliseconds) {
+            break;
+        }
+    }
+}
