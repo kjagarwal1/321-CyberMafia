@@ -3,25 +3,115 @@
     <button id="signDiv-signIn">Sign In</button>
 </div>
 
+<head>
+    <title>Online Mafia</title>
+    <style type="text/css">
+        h1 {
+            color: black;
+            font-size: 40px;
+            text-align: center;
+        }
 
-<div id="gameDiv" style="display:none;">
-    <canvas id="ctx" width="500" height="500" style="border:1px solid #000000;"></canvas>
+        #TopContainer {
+            position: relative;
+            height: 300px;
+        }
+          
+        #BottomContainer {
+            position: relative;
+            height: 500px;
+        }
 
-    <div id="chat-text" style="width:500px;height:100px;overflow-y:scroll">
-        <div>CyberMafia Chat!</div>
+        #chat-text {
+            border: 1px solid red;
+            background-color: white;
+            position: absolute;
+            margin-right: 25px;
+            left: 0px;
+            top 0px;
+            bottom 0px;
+            right: 0%;
+            text-align: center;
+        }
+
+        #ctx {
+            border: 3px solid pink;
+            background-color: white;
+            position: absolute;
+            right: 0px;
+            top: 0px;
+            bottom: 0px;
+            left: 100%;
+            margin-left: 25px;
+        }
+
+        #role {
+            border: 3px solid red;
+            background-color: white;
+            position: absolute;
+            margin-right: 25px;
+            left: 0px;
+            top 0px;
+            bottom 0px;
+            right: 0%;
+        }
+
+        #playerBox {
+            border: 3px solid pink;
+            background-color: white;
+            position: absolute;
+            right: 0px;
+            top: 0px;
+            bottom: 0px;
+            left: 100%;
+            margin-left: 25px;
+        }
+
+    </style>
+</head>
+
+<body style="background-color:powderblue">
+    <h1> Online Mafia Demo</h1>
+    <div id="gameDiv" style="display:none;">
+
+        <div id="TopContainer">
+
+            <div id="chat-text" style="width:500px;height:300px;overflow-y:scroll">
+                <div>CyberMafia Chat!</div>
+            </div>
+
+            <canvas id="ctx" width="500" height="300" style="border:1px solid #000000;"></canvas>
+        </div>
+
+        <form id="chat-form">
+            <input id="chat-input" type="text" style="width:500px"></input>
+        </form>
+
+        <div id="BottomContainer">
+
+            <div id="role" style="width:500px; height: 200px; border: 1px solid #000000">
+                <div>Role</div>
+            </div>
+
+            <div id="playerBox" style="width:500px; height: 200px; border: 1px solid #ff0000">
+                <div>PLAYER NAMES GO HERE AMIGO</div>
+            </div>
+        </div>
+
+
     </div>
-
-    <form id="chat-form">
-        <input id="chat-input" type="text" style="width:500px"></input>
-    </form>
-    <div id="role" style="width:500px; height: 200px; border: 1px solid #000000">
-        <div>Role</div>
-    </div>
-
-</div>
+</body>
 
 <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
 <script>
+    function nightMode() {
+        document.getElementsByTagName("BODY")[0].style.backgroundColor = "purple";
+    }
+
+    function dayMode() {
+        document.getElementsByTagName("BODY")[0].style.backgroundColor = "powderblue";
+    }
+
     var socket = io();
     //sign
     var signDiv = document.getElementById('signDiv');
@@ -44,6 +134,10 @@
     var chatInput = document.getElementById('chat-input');
     var chatForm = document.getElementById('chat-form');
     var roleForm = document.getElementById('role');
+
+    //Player Box stuff
+    var playerForm = document.getElementById('playerBox');
+
     var ctx = document.getElementById("ctx").getContext("2d");
     ctx.font = '30px Arial';
 
@@ -62,6 +156,12 @@
     });
     socket.on('roleWrite', function (data) {
         roleForm.innerHTML += '<div>' + data + '</div>';
+    });
+    socket.on('playerWrite', function (data) {
+        playerForm.innerHTML += '<div>' + data + '</div>';
+    });
+    socket.on('playerClear', function () {
+        document.getElementById('playerBox').innerHTML = "";
     });
 
     chatForm.onsubmit = function (e) {
@@ -82,6 +182,20 @@
             socket.emit('keyPress', { inputId: 'left', state: true });
         else if (event.keyCode === 87) // w
             socket.emit('keyPress', { inputId: 'up', state: true });
+        else if (event.keyCode === 49) // 1
+            socket.emit('keyPress', { inputId: 'action1', state: true });
+        else if (event.keyCode === 50) // 2
+            socket.emit('keyPress', { inputId: 'action2', state: true });
+        else if (event.keyCode === 51) // 3
+            socket.emit('keyPress', { inputId: 'action3', state: true });
+        else if (event.keyCode === 52) // 4
+            socket.emit('keyPress', { inputId: 'action4', state: true });
+        else if (event.keyCode === 189) // -
+            nightMode();
+        else if (event.keyCode === 187) // +
+            dayMode();
+
+
 
     }
     document.onkeyup = function (event) {
@@ -93,6 +207,14 @@
             socket.emit('keyPress', { inputId: 'left', state: false });
         else if (event.keyCode === 87) // w
             socket.emit('keyPress', { inputId: 'up', state: false });
+        else if (event.keyCode === 49) // 1
+            socket.emit('keyPress', { inputId: 'action1', state: false });
+        else if (event.keyCode === 50) // 2
+            socket.emit('keyPress', { inputId: 'action2', state: false });
+        else if (event.keyCode === 51) // 3
+            socket.emit('keyPress', { inputId: 'action3', state: false });
+        else if (event.keyCode === 52) // 4
+            socket.emit('keyPress', { inputId: 'action4', state: false });
     }
 
 </script>
