@@ -94,7 +94,7 @@
             </div>
 
             <div id="playerBox" style="width:500px; height: 200px; border: 1px solid #ff0000">
-                <div>PLAYER NAMES GO HERE AMIGO</div>
+                <div>Roles	</div>
             </div>
         </div>
 
@@ -127,21 +127,21 @@
     });
 
     //game
-
-
-
+	
+	
+	
     var chatText = document.getElementById('chat-text');
     var chatInput = document.getElementById('chat-input');
     var chatForm = document.getElementById('chat-form');
     var roleForm = document.getElementById('role');
-
+	
     //Player Box stuff
     var playerForm = document.getElementById('playerBox');
-
+	
     var ctx = document.getElementById("ctx").getContext("2d");
     ctx.font = '30px Arial';
-
-
+	
+	
     socket.on('newPositions', function (data) {
         ctx.clearRect(0, 0, 500, 500);
         for (var i = 0; i < data.player.length; i++)
@@ -163,7 +163,9 @@
     socket.on('playerClear', function () {
         document.getElementById('playerBox').innerHTML = "";
     });
-
+	socket.on('synch', function(){
+		return false;
+	});
     chatForm.onsubmit = function (e) {
         e.preventDefault();
         if (chatInput.value[0] === '/')
@@ -191,11 +193,18 @@
         else if (event.keyCode === 52) // 4
             socket.emit('keyPress', { inputId: 'action4', state: true });
         else if (event.keyCode === 189) // -
-            nightMode();
-        else if (event.keyCode === 187) // +
             dayMode();
-
-
+        else if (event.keyCode === 187) // +
+            nightMode();
+		else if(event.keyCode === 186){//;
+			socket.emit('dayMode');
+			
+		}
+		else if(event.keyCode === 191) ///
+		{
+			socket.emit('nightMode');
+			
+		}
 
     }
     document.onkeyup = function (event) {
@@ -207,14 +216,14 @@
             socket.emit('keyPress', { inputId: 'left', state: false });
         else if (event.keyCode === 87) // w
             socket.emit('keyPress', { inputId: 'up', state: false });
-        else if (event.keyCode === 49) // 1
+        /*else if (event.keyCode === 49) // 1
             socket.emit('keyPress', { inputId: 'action1', state: false });
         else if (event.keyCode === 50) // 2
             socket.emit('keyPress', { inputId: 'action2', state: false });
         else if (event.keyCode === 51) // 3
             socket.emit('keyPress', { inputId: 'action3', state: false });
         else if (event.keyCode === 52) // 4
-            socket.emit('keyPress', { inputId: 'action4', state: false });
+            socket.emit('keyPress', { inputId: 'action4', state: false });*/ //temporary comment
     }
 
 </script>
